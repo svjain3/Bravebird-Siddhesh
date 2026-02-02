@@ -1,0 +1,84 @@
+services:
+  # LocalStack - Simulates AWS services locally
+  localstack:
+    image: localstack/localstack:3.0
+    ports:
+      - "4566:4566"           # LocalStack Gateway
+      - "4510-4559:4510-4559" # External service ports
+    environment:
+      - SERVICES=sqs,s3,dynamodb,secretsmanager,logs,lambda,ecs
+      - DEBUG=0
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - LAMBDA_EXECUTOR=docker
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./localstack-init:/etc/localstack/init/ready.d"
+      - "localstack-data:/var/lib/localstack"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis - For local queue (alternative to SQS)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MinIO - S3-compatible storage (alternative to LocalStack S3)
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Service
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "8000:8000"
+    environment:
+      - EPHEMERAL_AWS_ENDPOINT_URL=http://localstack:4566
+      - EPHEMERAL_AWS_REGION=us-east-1
+      - EPHEMERAL_SQS_QUEUE_HIGH=jobs-high.fifo
+      - EPHEMERAL_SQS_QUEUE_NORMAL=jobs-normal.fifo
+      - EPHEMERAL_SQS_QUEUE_LOW=jobs-low.fifo
+      - EPHEMERAL_DYNAMODB_TABLE=jobs
+      - EPHEMERAL_S3_BUCKET=job-artifacts
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+    depends_on:
+      localstack:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  localstack-data:
+  minio-data:
+
+networks:
+  default:
+    name: ephemeral-infra

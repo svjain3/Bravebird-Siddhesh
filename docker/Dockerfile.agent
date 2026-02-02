@@ -1,0 +1,21 @@
+# Agent container - runs Playwright for browser automation
+FROM mcr.microsoft.com/playwright/python:v1.58.0-jammy
+
+WORKDIR /app
+
+# Install Python dependencies
+COPY agent/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy agent code
+COPY agent/agent.py .
+
+# Create output directory
+RUN mkdir -p /output
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV OUTPUT_DIR=/output
+
+# Run agent
+CMD ["python", "agent.py"]
