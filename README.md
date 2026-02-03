@@ -1,28 +1,3 @@
-# 🦅 Bravebird: Ephemeral Environment Orchestration
-
-## 🔧 Interfaces: API + CLI
-
-### REST API
-```bash
-# Submit any URL to trigger a fresh container and Playwright screenshot
-curl -X POST http://localhost:8000/jobs \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://example.com","user_id":"test"}'
-```
-
-### CLI Tool
-```bash
-# Priority defaults to 'normal', but can be set to 'high' or 'low' to jump the queue
-ephemeral submit --url https://example.com --user-id test --priority high
-
-# Track status using the unique job_id returned in the response
-ephemeral status job-01KGGD...
-ephemeral logs job-01KGGD...
-```
-
-Install: `pip install -e . && export EPHEMERAL_API_URL="http://localhost:8000"`
-
----
 
 ## 🖥️ Local Testing
 
