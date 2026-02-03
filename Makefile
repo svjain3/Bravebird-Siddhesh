@@ -29,8 +29,8 @@ test:
 
 # Build Docker images
 build:
-	docker build -t ephemeral-agent:latest -f docker/Dockerfile.agent .
-	docker build -t ephemeral-api:latest -f docker/Dockerfile.api .
+	docker build --platform linux/amd64 -t ephemeral-agent:latest -f docker/Dockerfile.agent .
+	docker build --platform linux/amd64 -t ephemeral-api:latest -f docker/Dockerfile.api .
 	@echo "Built ephemeral-agent:latest and ephemeral-api:latest"
 
 # Login to ECR

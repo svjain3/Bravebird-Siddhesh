@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     aws_region: str = "us-east-1"
     aws_endpoint_url: str | None = None  # For LocalStack
     public_aws_endpoint_url: str | None = None  # For browser access to LocalStack
+    aws_logs_group: str = "/ecs/ephemeral-agent"
     
     # SQS Queues
     sqs_queue_high: str = "jobs-high.fifo"

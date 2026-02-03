@@ -292,7 +292,7 @@ async def stream_logs(websocket: WebSocket, job_id: str):
     
     settings = get_settings()
     logs = get_logs_client()
-    log_group = f"/ecs/agent/{job_id}"
+    log_group = settings.aws_logs_group
     
     next_token = None
     
@@ -303,6 +303,7 @@ async def stream_logs(websocket: WebSocket, job_id: str):
                     "logGroupName": log_group,
                     "startFromHead": False,
                     "limit": 100,
+                    "filterPattern": f"[{job_id}]",
                 }
                 if next_token:
                     kwargs["nextToken"] = next_token
@@ -315,7 +316,8 @@ async def stream_logs(websocket: WebSocket, job_id: str):
                         "message": event["message"],
                     })
                 
-                next_token = response.get("nextForwardToken")
+                # Update token for next poll
+                next_token = response.get("nextToken") or response.get("nextForwardToken")
                 
                 # Check if job is complete
                 job = await get_job(job_id)
@@ -323,15 +325,25 @@ async def stream_logs(websocket: WebSocket, job_id: str):
                     await websocket.send_json({"status": "complete", "job_status": job.status.value})
                     break
                 
-            except logs.exceptions.ResourceNotFoundException:
-                # Log group doesn't exist yet, wait
-                await websocket.send_json({"status": "waiting", "message": "Waiting for logs..."})
+            except Exception as e:
+                # Handle group not found or other API errors gracefully
+                error_name = getattr(e, "response", {}).get("Error", {}).get("Code", "UnknownError")
+                if error_name == "ResourceNotFoundException":
+                    await websocket.send_json({"status": "waiting", "message": "Waiting for logs..."})
+                else:
+                    await websocket.send_json({"status": "error", "message": f"Log error: {str(e)}"})
+                    break
             
             import asyncio
-            await asyncio.sleep(1)
+            await asyncio.sleep(2)
             
     except WebSocketDisconnect:
         pass
+    except Exception as e:
+        try:
+            await websocket.send_json({"status": "error", "message": f"Stream error: {str(e)}"})
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

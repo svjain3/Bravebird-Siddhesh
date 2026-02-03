@@ -240,6 +240,10 @@ resource "aws_ecs_task_definition" "api" {
         {
           name  = "EPHEMERAL_S3_BUCKET"
           value = aws_s3_bucket.artifacts.id
+        },
+        {
+          name  = "EPHEMERAL_AWS_LOGS_GROUP"
+          value = aws_cloudwatch_log_group.agent.name
         }
       ]
       
@@ -290,7 +294,8 @@ resource "aws_iam_role_policy" "api_task" {
         Effect = "Allow"
         Action = [
           "sqs:SendMessage",
-          "sqs:GetQueueUrl"
+          "sqs:GetQueueUrl",
+          "sqs:ListQueues"
         ]
         Resource = [
           aws_sqs_queue.jobs_high.arn,
@@ -304,7 +309,8 @@ resource "aws_iam_role_policy" "api_task" {
           "dynamodb:GetItem",
           "dynamodb:PutItem",
           "dynamodb:UpdateItem",
-          "dynamodb:Query"
+          "dynamodb:Query",
+          "dynamodb:ListTables"
         ]
         Resource = [
           aws_dynamodb_table.jobs.arn,
@@ -315,7 +321,8 @@ resource "aws_iam_role_policy" "api_task" {
         Effect = "Allow"
         Action = [
           "s3:GetObject",
-          "s3:PutObject"
+          "s3:PutObject",
+          "s3:ListAllMyBuckets"
         ]
         Resource = ["${aws_s3_bucket.artifacts.arn}/*"]
       },
