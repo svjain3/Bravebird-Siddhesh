@@ -294,8 +294,7 @@ resource "aws_iam_role_policy" "api_task" {
         Effect = "Allow"
         Action = [
           "sqs:SendMessage",
-          "sqs:GetQueueUrl",
-          "sqs:ListQueues"
+          "sqs:GetQueueUrl"
         ]
         Resource = [
           aws_sqs_queue.jobs_high.arn,
@@ -305,12 +304,16 @@ resource "aws_iam_role_policy" "api_task" {
       },
       {
         Effect = "Allow"
+        Action = ["sqs:ListQueues"]
+        Resource = ["*"]
+      },
+      {
+        Effect = "Allow"
         Action = [
           "dynamodb:GetItem",
           "dynamodb:PutItem",
           "dynamodb:UpdateItem",
-          "dynamodb:Query",
-          "dynamodb:ListTables"
+          "dynamodb:Query"
         ]
         Resource = [
           aws_dynamodb_table.jobs.arn,
@@ -319,12 +322,21 @@ resource "aws_iam_role_policy" "api_task" {
       },
       {
         Effect = "Allow"
+        Action = ["dynamodb:ListTables"]
+        Resource = ["*"]
+      },
+      {
+        Effect = "Allow"
         Action = [
           "s3:GetObject",
-          "s3:PutObject",
-          "s3:ListAllMyBuckets"
+          "s3:PutObject"
         ]
         Resource = ["${aws_s3_bucket.artifacts.arn}/*"]
+      },
+      {
+        Effect = "Allow"
+        Action = ["s3:ListAllMyBuckets"]
+        Resource = ["*"]
       },
       {
         Effect = "Allow"

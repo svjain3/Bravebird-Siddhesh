@@ -153,7 +153,8 @@ async def health_check():
         sqs = get_sqs_client()
         sqs.list_queues(MaxResults=1)
         services["sqs"] = "ok"
-    except Exception:
+    except Exception as e:
+        print(f"Health check SQS error: {e}")
         services["sqs"] = "error"
     
     # Check DynamoDB
@@ -161,7 +162,8 @@ async def health_check():
         dynamodb = get_dynamodb_client()
         dynamodb.list_tables(Limit=1)
         services["dynamodb"] = "ok"
-    except Exception:
+    except Exception as e:
+        print(f"Health check DynamoDB error: {e}")
         services["dynamodb"] = "error"
     
     # Check S3
@@ -169,7 +171,8 @@ async def health_check():
         s3 = get_s3_client()
         s3.list_buckets()
         services["s3"] = "ok"
-    except Exception:
+    except Exception as e:
+        print(f"Health check S3 error: {e}")
         services["s3"] = "error"
     
     return HealthResponse(services=services)
