@@ -1,5 +1,5 @@
 
-## 🖥️ Local Testing
+##  Local Testing
 
 ### Prerequisites
 - Docker Desktop running
@@ -62,9 +62,9 @@ cd terraform && terraform output api_endpoint
 
 ---
 
-## 🧪 AWS Testing (For Evaluators)
+## 🧪 AWS Testing 
 
-> **Note**: I have already deployed the system. You can test using my live endpoint below.
+> **Note**: I have already deployed the system. You can test using my live endpoint below, or use your own endpoint if you wish.
 
 ### Live Endpoint
 ```
@@ -148,7 +148,7 @@ make destroy
 
 ---
 
-## ⚠️ Failure Modes & Resilience
+## Failure Modes & Resilience
 
 | Failure Scenario | System Behavior |
 |:---|:---|
