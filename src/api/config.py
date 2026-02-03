@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     ecs_security_groups: list[str] = []
     
     # Rate Limiting
-    rate_limit_per_minute: int = 10
+    rate_limit_per_minute: int = 50
     
     # Job Configuration
     job_timeout_seconds: int = 600  # 10 minutes
