@@ -304,9 +304,8 @@ async def stream_logs(websocket: WebSocket, job_id: str):
             try:
                 kwargs = {
                     "logGroupName": log_group,
-                    "startFromHead": False,
                     "limit": 100,
-                    "filterPattern": f"[{job_id}]",
+                    "filterPattern": f'"{job_id}"',
                 }
                 if next_token:
                     kwargs["nextToken"] = next_token
@@ -320,7 +319,7 @@ async def stream_logs(websocket: WebSocket, job_id: str):
                     })
                 
                 # Update token for next poll
-                next_token = response.get("nextToken") or response.get("nextForwardToken")
+                next_token = response.get("nextToken")
                 
                 # Check if job is complete
                 job = await get_job(job_id)

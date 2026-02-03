@@ -140,6 +140,8 @@ resource "aws_ecs_service" "api" {
     enable   = true
     rollback = true
   }
+
+  force_new_deployment = false
   
   depends_on = [aws_lb_listener.api]
   
