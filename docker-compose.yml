@@ -58,6 +58,7 @@ services:
       - "8000:8000"
     environment:
       - EPHEMERAL_AWS_ENDPOINT_URL=http://localstack:4566
+      - EPHEMERAL_PUBLIC_AWS_ENDPOINT_URL=http://localhost:4566
       - EPHEMERAL_AWS_REGION=us-east-1
       - EPHEMERAL_SQS_QUEUE_HIGH=jobs-high.fifo
       - EPHEMERAL_SQS_QUEUE_NORMAL=jobs-normal.fifo

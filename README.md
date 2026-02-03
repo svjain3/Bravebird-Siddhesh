@@ -6,6 +6,7 @@
 - Python 3.11+
 
 ### Start the Stack
+From the root directory of the repository:
 ```bash
 # Terminal 1: Start LocalStack + API
 docker-compose up
@@ -22,6 +23,12 @@ curl -X POST http://localhost:8000/jobs \
   -d '{"url":"https://github.com","user_id":"dev-user"}'
 ```
 
+### Check Status
+```bash
+# Use the job_id from the submission response to track progress
+curl http://localhost:8000/jobs/<JOB_ID>
+```
+
 ### Submit a Job (CLI)
 ```bash
 pip install -e .
@@ -33,11 +40,6 @@ ephemeral status <JOB_ID>
 ephemeral logs <JOB_ID>
 ```
 
-### Check Status
-```bash
-# Use the job_id from the submission response to track progress
-curl http://localhost:8000/jobs/<JOB_ID>
-```
 
 ---
 

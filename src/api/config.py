@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     # AWS Configuration
     aws_region: str = "us-east-1"
     aws_endpoint_url: str | None = None  # For LocalStack
+    public_aws_endpoint_url: str | None = None  # For browser access to LocalStack
     
     # SQS Queues
     sqs_queue_high: str = "jobs-high.fifo"

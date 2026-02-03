@@ -228,6 +228,14 @@ async def get_job_status(job_id: str):
                 Params={"Bucket": settings.s3_bucket, "Key": key},
                 ExpiresIn=3600,
             )
+            
+            # If public endpoint is configured, swap it in the URL
+            if settings.public_aws_endpoint_url and settings.aws_endpoint_url:
+                presigned_url = presigned_url.replace(
+                    settings.aws_endpoint_url, 
+                    settings.public_aws_endpoint_url
+                )
+            
             job.result.screenshot_url = presigned_url
         except Exception:
             pass
