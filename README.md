@@ -43,7 +43,7 @@ ephemeral logs <JOB_ID>
 
 ---
 
-## ☁️ AWS Deployment
+## AWS Deployment
 
 ### Prerequisites
 - AWS CLI configured (`aws configure`)
@@ -62,7 +62,7 @@ cd terraform && terraform output api_endpoint
 
 ---
 
-## 🧪 AWS Testing 
+## AWS Testing 
 
 > **Note**: I have already deployed the system. You can test using my live endpoint below, or use your own endpoint if you wish.
 
