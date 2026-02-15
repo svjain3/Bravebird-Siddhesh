@@ -40,6 +40,11 @@ ephemeral status <JOB_ID>
 ephemeral logs <JOB_ID>
 ```
 
+### Frontend (Development)
+```bash
+cd frontend && npm install && npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) to use the dashboard.
 
 ---
 
@@ -48,16 +53,27 @@ ephemeral logs <JOB_ID>
 ### Prerequisites
 - AWS CLI configured (`aws configure`)
 - Docker installed
-- Terraform installed
+- Node.js and NPM installed (for CDK)
 
-### Deploy
+### Deploy Infrastructure (Backend)
 ```bash
-make ecr-login && make push && make deploy
+make deploy-backend
 ```
 
-### Get API Endpoint
+### Deploy Frontend
+Once the backend is deployed (so the API URL is available), deploy the frontend:
 ```bash
-cd terraform && terraform output api_endpoint
+make deploy-frontend
+```
+
+### Build & Push Docker Images
+```bash
+make ecr-login && make push
+```
+
+### Destroy Infrastructure
+```bash
+make destroy
 ```
 
 ---
@@ -119,6 +135,8 @@ wait
 |:---|:---|:---|
 | `/jobs` | POST | Submit job (returns unique `job_id`) |
 | `/jobs/{id}` | GET | Track status (queued -> running -> completed) |
+| `/jobs/{id}` | DELETE | Cancel a pending/running job |
+| `/jobs/{id}/logs` | WebSocket | Stream live logs |
 | `/health` | GET | Health check |
 
 ### POST /jobs
@@ -143,7 +161,7 @@ wait
 
 ## 🗑️ Cleanup
 ```bash
-make destroy
+cd cdk && npx cdk destroy --all --force
 ```
 
 ---

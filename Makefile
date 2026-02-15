@@ -49,23 +49,28 @@ push: build
 	@echo "  $(ECR_REGISTRY)/ephemeral-agent:latest"
 	@echo "  $(ECR_REGISTRY)/ephemeral-api:latest"
 
-# Deploy to AWS
-deploy:
-	cd terraform && terraform init && terraform apply -auto-approve
-	@echo ""
-	@echo "API Endpoint:"
-	@cd terraform && terraform output api_endpoint
+deploy-backend:
+	cd cdk && npm install && npx cdk deploy NetworkStack AuthStack DataStack ComputeStack QueueStack MonitoringStack --require-approval never
+
+deploy-frontend:
+	@echo "Fetching API Endpoint from ComputeStack..."
+	@API_URL=$$(aws cloudformation describe-stacks --stack-name ComputeStack --query "Stacks[0].Outputs[?ExportName=='ApiEndpoint'].OutputValue" --output text); \
+	echo "Building Frontend with NEXT_PUBLIC_API_URL=$$API_URL"; \
+	cd frontend && NEXT_PUBLIC_API_URL=$$API_URL npm install && npm run build
+	cd cdk && npx cdk deploy FrontendStack --require-approval never
+
+deploy-all: deploy-backend deploy-frontend
 
 # Destroy AWS resources
 destroy:
-	cd terraform && terraform destroy -auto-approve
+	cd cdk && npx cdk destroy --all --force
 
 # Clean up
 clean:
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 	docker-compose down -v --rmi local
-	rm -rf terraform/.terraform terraform/.terraform.lock.hcl
+	rm -rf cdk/cdk.out cdk/node_modules
 
 # Run agent locally for testing
 test-agent:
@@ -114,7 +119,7 @@ help:
 	@echo "AWS Deployment:"
 	@echo "  make ecr-login  - Login to ECR"
 	@echo "  make push       - Build and push images to ECR"
-	@echo "  make deploy     - Deploy with Terraform"
+	@echo "  make deploy     - Deploy with CDK"
 	@echo "  make destroy    - Destroy AWS resources"
 	@echo ""
 	@echo "Cleanup:"

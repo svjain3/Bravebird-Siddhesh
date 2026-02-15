@@ -1,0 +1,71 @@
+.formCard {
+    max-width: 640px;
+    padding: 32px;
+}
+
+.formGroup {
+    margin-bottom: 24px;
+}
+
+.formRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.formActions {
+    display: flex;
+    gap: 12px;
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+}
+
+.successCard {
+    max-width: 640px;
+    padding: 32px;
+    text-align: center;
+}
+
+.successIcon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+}
+
+.successTitle {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.successId {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 0.9rem;
+    color: var(--accent-light);
+    background: rgba(108, 92, 231, 0.1);
+    padding: 8px 16px;
+    border-radius: var(--radius-xs);
+    display: inline-block;
+    margin: 12px 0 24px;
+}
+
+.successActions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+.helperText {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 6px;
+}
+
+.errorMsg {
+    color: var(--error);
+    font-size: 0.875rem;
+    padding: 12px 16px;
+    background: var(--error-bg);
+    border-radius: var(--radius-xs);
+    margin-bottom: 20px;
+}

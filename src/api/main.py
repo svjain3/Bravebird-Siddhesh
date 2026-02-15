@@ -4,12 +4,12 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Header
 from fastapi.middleware.cors import CORSMiddleware
 
 from .models import (
     Job, JobInput, JobStatus, JobSubmitResponse, JobStatusResponse,
-    HealthResponse, Priority, JobResult
+    HealthResponse, Priority, JobResult, EligibilityRequest, EligibilityResponse
 )
 from .config import get_settings
 from .aws_clients import get_sqs_client, get_dynamodb_client, get_s3_client, get_logs_client
@@ -347,6 +347,191 @@ async def stream_logs(websocket: WebSocket, job_id: str):
         except Exception:
             pass
 
+# ---------------------------------------------------------------------------
+# MOCK ELIGIBILITY DATA & ENDPOINTS with HOSPITAL SCOPING
+# ---------------------------------------------------------------------------
+
+# 15 Mock Patients across 3 Hospitals
+MOCK_PATIENTS = {
+    # Mercy General (101-105)
+    "101": {"name": "Alice Smith", "dob": "1985-04-12", "hospital": "Mercy General", "plan": "Gold PPO", "status": "Active", "copay": "$25"},
+    "102": {"name": "Bob Jones", "dob": "1990-06-23", "hospital": "Mercy General", "plan": "Silver HMO", "status": "Active", "copay": "$40"},
+    "103": {"name": "Charlie Day", "dob": "1978-11-05", "hospital": "Mercy General", "plan": "Bronze EPO", "status": "Inactive", "copay": "N/A"},
+    "104": {"name": "Diana Ross", "dob": "1965-02-14", "hospital": "Mercy General", "plan": "Platinum PPO", "status": "Active", "copay": "$10"},
+    "105": {"name": "Edward Norton", "dob": "1988-09-30", "hospital": "Mercy General", "plan": "Gold PPO", "status": "Active", "copay": "$25"},
+    
+    # St. Jude Medical (106-110)
+    "106": {"name": "Frank Castle", "dob": "1980-12-01", "hospital": "St. Jude Medical", "plan": "Silver HMO", "status": "Active", "copay": "$35"},
+    "107": {"name": "Grace Hopper", "dob": "1995-07-20", "hospital": "St. Jude Medical", "plan": "Gold PPO", "status": "Active", "copay": "$20"},
+    "108": {"name": "Henry Ford", "dob": "1970-03-15", "hospital": "St. Jude Medical", "plan": "Bronze EPO", "status": "Inactive", "copay": "N/A"},
+    "109": {"name": "Iris West", "dob": "1992-05-18", "hospital": "St. Jude Medical", "plan": "Platinum PPO", "status": "Active", "copay": "$15"},
+    "110": {"name": "Jack Ryan", "dob": "1983-08-25", "hospital": "St. Jude Medical", "plan": "Silver HMO", "status": "Active", "copay": "$35"},
+    
+    # City Hope Clinic (111-115)
+    "111": {"name": "Kevin Hart", "dob": "1989-01-10", "hospital": "City Hope Clinic", "plan": "Gold PPO", "status": "Active", "copay": "$25"},
+    "112": {"name": "Laura Croft", "dob": "1993-04-22", "hospital": "City Hope Clinic", "plan": "Silver HMO", "status": "Active", "copay": "$30"},
+    "113": {"name": "Mike Ross", "dob": "1987-11-11", "hospital": "City Hope Clinic", "plan": "Bronze EPO", "status": "Active", "copay": "$50"},
+    "114": {"name": "Nancy Drew", "dob": "1998-02-28", "hospital": "City Hope Clinic", "plan": "Platinum PPO", "status": "Active", "copay": "$10"},
+    "115": {"name": "Oscar Isaac", "dob": "1982-06-05", "hospital": "City Hope Clinic", "plan": "Gold PPO", "status": "Inactive", "copay": "N/A"},
+}
+
+@app.post("/get_eligibility", response_model=EligibilityResponse)
+async def get_eligibility(request: EligibilityRequest, x_hospital_id: str | None = Header(None)):
+    """Mock endpoint for checking patient eligibility with Hospital Scoping"""
+    # Simulate processing delay
+    import asyncio
+    await asyncio.sleep(0.5)
+    
+    patient = MOCK_PATIENTS.get(request.patient_id)
+    
+    # 1. Check if patient exists
+    if not patient:
+         if x_hospital_id:
+             raise HTTPException(404, "Patient not found in your hospital records.")
+         
+         # Fallback for unknown IDs if no hospital scope (legacy behavior)
+         patient = {
+             "name": f"Patient {request.patient_id}", 
+             "dob": "1980-01-01", 
+             "hospital": "Unknown", 
+             "plan": "Basic", 
+             "status": "Inactive",
+             "copay": "$0"
+         }
+
+    # 2. Check Hospital Access
+    if x_hospital_id and patient.get("hospital") != x_hospital_id:
+         # SIMULATE ACCESS DENIED
+         raise HTTPException(403, f"Access Denied: Patient belongs to {patient.get('hospital')}")
+
+    return EligibilityResponse(
+        status=patient["status"],
+        plan_name=patient["plan"],
+        coverage_details={
+            "copay": patient["copay"],
+            "deductible_remaining": "$500.00" if patient["status"] == "Active" else "$0.00",
+            "coinsurance": "20%",
+            "out_of_pocket_max": "$5000.00",
+            "hospital": patient["hospital"],
+            "service_date": request.service_date,
+        },
+        patient={
+            "id": request.patient_id,
+            "name": patient["name"],
+            "dob": patient["dob"],
+        },
+        timestamp=datetime.utcnow()
+    )
+
+
+@app.post("/get_eligibility_chat")
+async def get_eligibility_chat(request: dict, x_hospital_id: str | None = Header(None)):
+    """AI-powered eligibility chat assistant using Bedrock with Mock Data context"""
+    user_message = request.get("message", "").lower()
+    
+    # Try to extract patient ID
+    import re
+    id_match = re.search(r'(\d{3})', user_message)
+    found_id = id_match.group(1) if id_match else None
+    
+    # Lookup context
+    context_str = "No specific patient found in local records."
+    suggested_actions = ["Check Patient 101", "Check Patient 106"]
+    
+    if found_id and found_id in MOCK_PATIENTS:
+        p = MOCK_PATIENTS[found_id]
+        
+        # Enforce Hospital Isolation in Context
+        if x_hospital_id and p["hospital"] != x_hospital_id:
+             return {
+                 "response": f"I cannot access records for Patient ID {found_id}. They belong to **{p['hospital']}**, not your facility.",
+                 "suggested_actions": ["Check Local Directory"]
+             }
+        
+        context_str = f"""
+        Patient Found:
+        Name: {p['name']}
+        ID: {found_id}
+        Hospital: {p['hospital']}
+        Status: {p['status']}
+        Plan: {p['plan']}
+        Copay: {p['copay']}
+        """
+        suggested_actions = ["Check Deductible", "Download Summary"]
+
+    # Try Bedrock
+    # Select Model
+    model_choice = request.get("model", "claude")
+    
+    try:
+        import boto3
+        import json
+        
+        bedrock = boto3.client("bedrock-runtime", region_name="us-east-1")
+        
+        prompt = f"""
+        You are a helpful healthcare eligibility assistant for {x_hospital_id or 'this hospital'}.
+        User has asked: "{user_message}"
+        
+        Context from records:
+        {context_str}
+        
+        Instructions:
+        1. Answer the user's question based on the "Context from records" provided above.
+        2. If the user provides patient details (like name, plan, or status) directly in their message, you should use that information to help them if a record isn't found in our system.
+        3. Summarize benefits clearly using markdown for **bolding** key details.
+        4. If no patient information is available at all, politely ask for a Patient ID.
+        
+        Assistant:
+        """
+        
+        if model_choice == "titan":
+             model_id = "amazon.titan-text-express-v1"
+             body = json.dumps({
+                 "inputText": prompt,
+                 "textGenerationConfig": {
+                     "maxTokenCount": 512,
+                     "temperature": 0.5,
+                     "topP": 0.9
+                 }
+             })
+             response = bedrock.invoke_model(modelId=model_id, body=body)
+             response_body = json.loads(response.get("body").read())
+             ai_reply = response_body["results"][0]["outputText"]
+             
+        else:
+             # Default: Claude 3 Haiku
+             model_id = "anthropic.claude-3-haiku-20240307-v1:0"
+             body = json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 512,
+                "messages": [
+                    {"role": "user", "content": prompt}
+                ]
+             })
+             response = bedrock.invoke_model(modelId=model_id, body=body)
+             response_body = json.loads(response.get("body").read())
+             ai_reply = response_body["content"][0]["text"]
+        
+        return {
+            "response": ai_reply,
+            "suggested_actions": suggested_actions
+        }
+
+    except Exception as e:
+        print(f"Bedrock invocation failed: {e}")
+        # Fallback to Mock Logic if Bedrock fails (e.g. model not enabled)
+        if found_id and found_id in MOCK_PATIENTS:
+             p = MOCK_PATIENTS[found_id]
+             return {
+                "response": f"Found **{p['name']}** (ID: {found_id}) at **{p['hospital']}**.\n\n**Status**: {p['status']}\n**Plan**: {p['plan']}\n**Copay**: {p['copay']} (AI Offline)",
+                "suggested_actions": suggested_actions
+            }
+        
+        return {
+             "response": "I'm your eligibility assistant. Please provide a **Patient ID** to check benefits. (AI Service Unavailable)",
+             "suggested_actions": ["Check Patient 101"]
+        }
 
 if __name__ == "__main__":
     import uvicorn

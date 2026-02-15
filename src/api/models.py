@@ -128,3 +128,19 @@ class HealthResponse(BaseModel):
     status: str = "ok"
     version: str = "0.1.0"
     services: dict[str, str] = Field(default_factory=dict)
+
+
+class EligibilityRequest(BaseModel):
+    """Request for eligibility check"""
+    patient_id: str = Field(..., description="Patient ID")
+    provider_id: str = Field(..., description="Provider NPI")
+    service_date: str = Field(default_factory=lambda: datetime.now().strftime("%Y-%m-%d"), description="Date of service")
+
+
+class EligibilityResponse(BaseModel):
+    """Mock eligibility response"""
+    status: str
+    plan_name: str
+    coverage_details: dict[str, Any]
+    patient: dict[str, str]
+    timestamp: datetime = Field(default_factory=datetime.utcnow)

@@ -25,12 +25,6 @@ ENV/
 .env
 .env.local
 
-# Terraform
-terraform/.terraform/
-terraform/*.tfstate
-terraform/*.tfstate.backup
-terraform/.terraform.lock.hcl
-terraform/*.zip
 
 # Docker
 localstack-data/
@@ -47,3 +41,12 @@ logs/
 
 # LocalStack data
 localstack_data/
+
+# CDK
+cdk/cdk.out
+cdk/node_modules
+**/*.js
+**/*.d.ts
+!cdk/jest.config.js
+!cdk/tsconfig.json
+!cdk/cdk.json

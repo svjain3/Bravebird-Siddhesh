@@ -1,0 +1,14 @@
+.git
+.gitignore
+.vscode
+.idea
+.venv
+__pycache__
+*.pyc
+cdk/
+frontend/
+node_modules/
+localstack-data/
+minio-data/
+.DS_Store
+.env
