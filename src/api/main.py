@@ -572,18 +572,25 @@ async def get_eligibility_chat(request: dict, x_hospital_id: str | None = Header
         Assistant:
         """
         
-        if True:  # Force Claude 3 Haiku (Titan deprecated)
-            model_id = "anthropic.claude-3-haiku-20240307-v1:0"
-            body = json.dumps({
-               "anthropic_version": "bedrock-2023-05-31",
-               "max_tokens": 512,
-               "messages": [
-                   {"role": "user", "content": prompt}
-               ]
-            })
-            response = bedrock.invoke_model(modelId=model_id, body=body)
-            response_body = json.loads(response.get("body").read())
-            ai_reply = response_body["content"][0]["text"]
+        # Map frontend model IDs to Bedrock model IDs
+        MODEL_MAP = {
+            "haiku": "anthropic.claude-3-haiku-20240307-v1:0",
+            "sonnet": "anthropic.claude-3-sonnet-20240229-v1:0",
+            "sonnet35": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+            "claude": "anthropic.claude-3-haiku-20240307-v1:0",  # legacy fallback
+        }
+        model_id = MODEL_MAP.get(model_choice, MODEL_MAP["haiku"])
+        
+        body = json.dumps({
+           "anthropic_version": "bedrock-2023-05-31",
+           "max_tokens": 512,
+           "messages": [
+               {"role": "user", "content": prompt}
+           ]
+        })
+        response = bedrock.invoke_model(modelId=model_id, body=body)
+        response_body = json.loads(response.get("body").read())
+        ai_reply = response_body["content"][0]["text"]
         
         return {
             "response": ai_reply,
