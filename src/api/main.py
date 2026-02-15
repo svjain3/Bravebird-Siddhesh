@@ -32,11 +32,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
         (Priority.LOW, settings.sqs_queue_low),
     ]:
         try:
+            # Try to get real URL from AWS
+            print(f"Resolving Queue URL for: {queue_name}")
             response = sqs.get_queue_url(QueueName=queue_name)
             _queue_urls[priority.value] = response["QueueUrl"]
-        except Exception:
-            # Queue may not exist in LocalStack yet
-            _queue_urls[priority.value] = f"http://localhost:4566/000000000000/{queue_name}"
+            print(f"Resolved {queue_name} to {_queue_urls[priority.value]}")
+        except Exception as e:
+            print(f"Warning: Failed to get queue url for {queue_name}: {e}")
+            if settings.aws_endpoint_url:
+                # Use LocalStack format
+                _queue_urls[priority.value] = f"{settings.aws_endpoint_url}/000000000000/{queue_name}"
+            else:
+                # Last resort fallback (AWS standard format if account ID was known)
+                # But we'll try to resolve it lazily if needed
+                pass
     
     yield
     # Cleanup if needed
@@ -109,16 +118,34 @@ async def save_job(job: Job) -> None:
         print(f"Warning: Failed to save job to DynamoDB: {e}")
 
 
-async def get_job(job_id: str) -> Job | None:
+async def get_job(job_id: str, user_id: str | None = None) -> Job | None:
     """Get job from DynamoDB"""
     settings = get_settings()
     dynamodb = get_dynamodb_client()
     
     try:
-        response = dynamodb.get_item(
-            TableName=settings.dynamodb_table,
-            Key={"pk": {"S": job_id}},
-        )
+        if user_id:
+            # Efficient point read
+            response = dynamodb.get_item(
+                TableName=settings.dynamodb_table,
+                Key={
+                    "PK": {"S": f"TENANT#{user_id}#JOB#{job_id}"},
+                    "SK": {"S": "META"}
+                },
+            )
+        else:
+            # fallback to Scan if user_id is missing (should add GSI for this!)
+            print(f"Warning: get_job called without user_id, performing Scan for job_id={job_id}")
+            response = dynamodb.scan(
+                TableName=settings.dynamodb_table,
+                FilterExpression="job_id = :jid",
+                ExpressionAttributeValues={":jid": {"S": job_id}},
+                Limit=1
+            )
+            if response.get("Items"):
+                return Job.from_dynamodb_item(response["Items"][0])
+            return None
+
         if "Item" in response:
             return Job.from_dynamodb_item(response["Item"])
     except Exception as e:
@@ -129,11 +156,21 @@ async def get_job(job_id: str) -> Job | None:
 async def enqueue_job(job: Job) -> None:
     """Send job to appropriate SQS queue"""
     sqs = get_sqs_client()
+    settings = get_settings()
     queue_url = _queue_urls.get(job.priority.value)
     
     if not queue_url:
-        raise HTTPException(500, "Queue not configured")
+        # Lazy resolution
+        queue_name = getattr(settings, f"sqs_queue_{job.priority.value}")
+        try:
+            response = sqs.get_queue_url(QueueName=queue_name)
+            queue_url = response["QueueUrl"]
+            _queue_urls[job.priority.value] = queue_url
+        except Exception as e:
+            print(f"Error resolving queue url lazily: {e}")
+            raise HTTPException(500, f"Queue {queue_name} not found")
     
+    print(f"Enqueuing job {job.job_id} to {queue_url}")
     sqs.send_message(
         QueueUrl=queue_url,
         MessageBody=job.model_dump_json(),
@@ -429,9 +466,9 @@ async def get_eligibility_chat(request: dict, x_hospital_id: str | None = Header
     """AI-powered eligibility chat assistant using Bedrock with Mock Data context"""
     user_message = request.get("message", "").lower()
     
-    # Try to extract patient ID
+    # Try to extract patient ID (any 1-5 digit number)
     import re
-    id_match = re.search(r'(\d{3})', user_message)
+    id_match = re.search(r'\b(\d{1,5})\b', user_message)
     found_id = id_match.group(1) if id_match else None
     
     # Lookup context
@@ -464,10 +501,8 @@ async def get_eligibility_chat(request: dict, x_hospital_id: str | None = Header
     model_choice = request.get("model", "claude")
     
     try:
-        import boto3
-        import json
-        
-        bedrock = boto3.client("bedrock-runtime", region_name="us-east-1")
+        settings = get_settings()
+        bedrock = boto3.client("bedrock-runtime", region_name=settings.aws_region)
         
         prompt = f"""
         You are a helpful healthcare eligibility assistant for {x_hospital_id or 'this hospital'}.
@@ -486,32 +521,32 @@ async def get_eligibility_chat(request: dict, x_hospital_id: str | None = Header
         """
         
         if model_choice == "titan":
-             model_id = "amazon.titan-text-express-v1"
-             body = json.dumps({
-                 "inputText": prompt,
-                 "textGenerationConfig": {
-                     "maxTokenCount": 512,
-                     "temperature": 0.5,
-                     "topP": 0.9
-                 }
-             })
-             response = bedrock.invoke_model(modelId=model_id, body=body)
-             response_body = json.loads(response.get("body").read())
-             ai_reply = response_body["results"][0]["outputText"]
+            model_id = "amazon.titan-text-express-v1"
+            body = json.dumps({
+                "inputText": prompt,
+                "textGenerationConfig": {
+                    "maxTokenCount": 512,
+                    "temperature": 0.5,
+                    "topP": 0.9
+                }
+            })
+            response = bedrock.invoke_model(modelId=model_id, body=body)
+            response_body = json.loads(response.get("body").read())
+            ai_reply = response_body["results"][0]["outputText"]
              
         else:
-             # Default: Claude 3 Haiku
-             model_id = "anthropic.claude-3-haiku-20240307-v1:0"
-             body = json.dumps({
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": 512,
-                "messages": [
-                    {"role": "user", "content": prompt}
-                ]
-             })
-             response = bedrock.invoke_model(modelId=model_id, body=body)
-             response_body = json.loads(response.get("body").read())
-             ai_reply = response_body["content"][0]["text"]
+            # Default: Claude 3 Haiku
+            model_id = "anthropic.claude-3-haiku-20240307-v1:0"
+            body = json.dumps({
+               "anthropic_version": "bedrock-2023-05-31",
+               "max_tokens": 512,
+               "messages": [
+                   {"role": "user", "content": prompt}
+               ]
+            })
+            response = bedrock.invoke_model(modelId=model_id, body=body)
+            response_body = json.loads(response.get("body").read())
+            ai_reply = response_body["content"][0]["text"]
         
         return {
             "response": ai_reply,
@@ -519,7 +554,9 @@ async def get_eligibility_chat(request: dict, x_hospital_id: str | None = Header
         }
 
     except Exception as e:
-        print(f"Bedrock invocation failed: {e}")
+        import traceback
+        print(f"Bedrock invocation failed for model {model_choice}: {e}")
+        traceback.print_exc()
         # Fallback to Mock Logic if Bedrock fails (e.g. model not enabled)
         if found_id and found_id in MOCK_PATIENTS:
              p = MOCK_PATIENTS[found_id]

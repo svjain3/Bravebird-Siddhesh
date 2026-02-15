@@ -63,7 +63,14 @@ export class QueueStack extends cdk.Stack {
         // props.computeStack.cluster.grantTaskExecute(dispatcherRole); // Removed invalid call as Cluster does not support this method
         dispatcherRole.addToPolicy(new iam.PolicyStatement({
             actions: ['ecs:RunTask'],
-            resources: [props.computeStack.cuaWorker.taskDefinition.taskDefinitionArn, props.computeStack.voiceWorker.taskDefinition.taskDefinitionArn],
+            resources: [
+                `arn:aws:ecs:${this.region}:${this.account}:task-definition/${props.computeStack.cuaWorker.taskDefinition.family}:*`,
+                `arn:aws:ecs:${this.region}:${this.account}:task-definition/${props.computeStack.voiceWorker.taskDefinition.family}:*`
+            ],
+        }));
+        dispatcherRole.addToPolicy(new iam.PolicyStatement({
+            actions: ['ecs:TagResource'],
+            resources: [`arn:aws:ecs:${this.region}:${this.account}:task/${props.computeStack.cluster.clusterName}/*`],
         }));
         dispatcherRole.addToPolicy(new iam.PolicyStatement({
             actions: ['iam:PassRole'],
@@ -82,8 +89,8 @@ export class QueueStack extends cdk.Stack {
             timeout: cdk.Duration.seconds(30),
             environment: {
                 ECS_CLUSTER: props.computeStack.cluster.clusterArn,
-                CUA_TASK_DEF: props.computeStack.cuaWorker.taskDefinition.taskDefinitionArn,
-                VOICE_TASK_DEF: props.computeStack.voiceWorker.taskDefinition.taskDefinitionArn,
+                CUA_TASK_DEF: props.computeStack.cuaWorker.taskDefinition.family,
+                VOICE_TASK_DEF: props.computeStack.voiceWorker.taskDefinition.family,
                 COMPUTE_SUBNETS: props.networkStack.vpc.selectSubnets({ subnetGroupName: 'private-compute' }).subnetIds.join(','),
                 COMPUTE_SG: props.networkStack.sgCompute.securityGroupId,
                 JOBS_TABLE: props.dataStack.jobsTable.tableName,

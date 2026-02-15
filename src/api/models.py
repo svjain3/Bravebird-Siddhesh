@@ -59,16 +59,18 @@ class Job(BaseModel):
     task_arn: str | None = None  # ECS task ARN
     
     def to_dynamodb_item(self) -> dict:
-        """Convert to DynamoDB item format"""
+        """Convert to DynamoDB item format (Single Table Design)"""
         item = {
-            "pk": {"S": self.job_id},
+            "PK": {"S": f"TENANT#{self.user_id}#JOB#{self.job_id}"},
+            "SK": {"S": "META"},
             "user_id": {"S": self.user_id},
+            "job_id": {"S": self.job_id},
             "url": {"S": self.url},
             "priority": {"S": self.priority.value},
             "status": {"S": self.status.value},
             "timeout_seconds": {"N": str(self.timeout_seconds)},
             "metadata": {"S": str(self.metadata)},
-            "created_at": {"S": self.created_at.isoformat()},
+            "created_at": {"N": str(self.created_at.timestamp())},
         }
         if self.started_at:
             item["started_at"] = {"S": self.started_at.isoformat()}
@@ -88,19 +90,25 @@ class Job(BaseModel):
             import json
             result = JobResult.model_validate_json(item["result"]["S"])
         
+        # Extract job_id from PK if job_id field is missing
+        job_id = item.get("job_id", {}).get("S")
+        if not job_id:
+            pk = item["PK"]["S"]
+            job_id = pk.split("#")[-1] if "#" in pk else pk
+
         return cls(
-            job_id=item["pk"]["S"],
+            job_id=job_id,
             user_id=item["user_id"]["S"],
             url=item["url"]["S"],
             priority=Priority(item["priority"]["S"]),
             status=JobStatus(item["status"]["S"]),
             timeout_seconds=int(item["timeout_seconds"]["N"]),
             metadata=eval(item.get("metadata", {}).get("S", "{}")),
-            created_at=datetime.fromisoformat(item["created_at"]["S"]),
+            created_at=datetime.fromtimestamp(float(item["created_at"]["N"])),
             started_at=datetime.fromisoformat(item["started_at"]["S"]) if "started_at" in item else None,
             completed_at=datetime.fromisoformat(item["completed_at"]["S"]) if "completed_at" in item else None,
-            task_arn=item.get("task_arn", {}).get("S"),
             result=result,
+            task_arn=item.get("task_arn", {}).get("S"),
         )
 
 

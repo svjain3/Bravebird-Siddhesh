@@ -40,7 +40,7 @@ def update_job_status(job_id: str, status: str, result: dict = None):
     Called when agent completes (success or failure) to update the job record.
     """
     dynamodb = get_dynamodb_client()
-    table_name = os.environ.get("DYNAMODB_TABLE", "jobs")
+    table_name = os.environ.get("DYNAMODB_TABLE", "bravebird-jobs")
     
     update_expr = "SET #status = :status, completed_at = :now"
     expr_names = {"#status": "status"}
@@ -57,7 +57,7 @@ def update_job_status(job_id: str, status: str, result: dict = None):
     try:
         dynamodb.update_item(
             TableName=table_name,
-            Key={"pk": {"S": job_id}},
+            Key={"PK": {"S": job_id}},
             UpdateExpression=update_expr,
             ExpressionAttributeNames=expr_names,
             ExpressionAttributeValues=expr_values,
@@ -70,9 +70,9 @@ def update_job_status(job_id: str, status: str, result: dict = None):
 async def run_agent():
     """Main agent execution"""
     job_id = os.environ.get("JOB_ID", "unknown")
-    target_url = os.environ.get("TARGET_URL", "https://example.com")
+    target_url = os.environ.get("TARGET_URL") or os.environ.get("PORTAL_URL") or "https://example.com"
     timeout_seconds = int(os.environ.get("TIMEOUT_SECONDS", "300"))
-    s3_bucket = os.environ.get("S3_BUCKET", "job-artifacts")
+    s3_bucket = os.environ.get("S3_BUCKET", "bravebird-artifacts")
     output_dir = os.environ.get("OUTPUT_DIR", "/output")
     
     print(f"[{job_id}] Starting agent")

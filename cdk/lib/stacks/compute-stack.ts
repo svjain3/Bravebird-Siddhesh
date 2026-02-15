@@ -46,21 +46,24 @@ export class ComputeStack extends cdk.Stack {
         const fastApiTaskRole = new TenantScopedRole(this, 'FastApiTaskRole', {
             roleName: 'bravebird-fastapi-role',
         });
-        // Allow API to access DynamoDB
+        // Allow API to access DynamoDB and SQS
         fastApiTaskRole.addToPolicy(new iam.PolicyStatement({
-            actions: ['dynamodb:*'],
-            resources: [props.dataStack.jobsTable.tableArn, props.dataStack.sessionsTable.tableArn],
+            actions: ['dynamodb:*', 'sqs:*'],
+            resources: [
+                props.dataStack.jobsTable.tableArn,
+                props.dataStack.sessionsTable.tableArn,
+                `arn:aws:sqs:${this.region}:${this.account}:bravebird-*`,
+            ],
         }));
-
         // Allow Bedrock access
         fastApiTaskRole.addToPolicy(new iam.PolicyStatement({
             actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
             resources: ['*'],
         }));
 
-        // Allow SQS, S3 and DynamoDB list permissions for health checks
+        // Allow S3 list permissions for health checks
         fastApiTaskRole.addToPolicy(new iam.PolicyStatement({
-            actions: ['sqs:ListQueues', 's3:ListAllMyBuckets', 'dynamodb:ListTables'],
+            actions: ['s3:ListAllMyBuckets', 'sqs:ListQueues', 'dynamodb:ListTables'],
             resources: ['*'],
         }));
 
@@ -88,14 +91,19 @@ export class ComputeStack extends cdk.Stack {
                 taskRole: fastApiTaskRole,
                 executionRole: taskExecutionRole,
                 environment: {
-                    DYNAMODB_JOBS_TABLE: props.dataStack.jobsTable.tableName,
-                    DYNAMODB_SESSIONS_TABLE: props.dataStack.sessionsTable.tableName,
+                    EPHEMERAL_DYNAMODB_TABLE: props.dataStack.jobsTable.tableName,
+                    EPHEMERAL_DYNAMODB_SESSIONS_TABLE: props.dataStack.sessionsTable.tableName,
                     EPHEMERAL_SQS_QUEUE_HIGH: 'bravebird-cua-high.fifo',
                     EPHEMERAL_SQS_QUEUE_NORMAL: 'bravebird-cua-normal.fifo',
                     EPHEMERAL_SQS_QUEUE_LOW: 'bravebird-cua-low.fifo',
                     EPHEMERAL_SQS_DLQ: 'bravebird-cua-high-dlq.fifo',
-                    EPHEMERAL_S3_BUCKET: 'bravebird-artifacts',
+                    EPHEMERAL_S3_BUCKET: props.dataStack.artifactsBucket.bucketName,
+                    EPHEMERAL_AWS_REGION: this.region,
                 },
+            },
+            runtimePlatform: {
+                cpuArchitecture: ecs.CpuArchitecture.X86_64,
+                operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
             },
             loadBalancer,
             openListener: false,
@@ -148,7 +156,9 @@ export class ComputeStack extends cdk.Stack {
             executionRole: taskExecutionRole,
             logGroupName: '/bravebird/ecs/cua-worker',
             environment: {
-                DYNAMODB_JOBS_TABLE: props.dataStack.jobsTable.tableName,
+                DYNAMODB_TABLE: props.dataStack.jobsTable.tableName,
+                S3_BUCKET: props.dataStack.artifactsBucket.bucketName,
+                TIMEOUT_SECONDS: '600',
             }
         });
 
@@ -163,7 +173,9 @@ export class ComputeStack extends cdk.Stack {
             logGroupName: '/bravebird/ecs/voice-worker',
             stopTimeout: cdk.Duration.seconds(120), // Max allowed for Fargate is 120s
             environment: {
-                DYNAMODB_JOBS_TABLE: props.dataStack.jobsTable.tableName,
+                DYNAMODB_TABLE: props.dataStack.jobsTable.tableName,
+                S3_BUCKET: props.dataStack.artifactsBucket.bucketName,
+                TIMEOUT_SECONDS: '600',
             }
         });
 

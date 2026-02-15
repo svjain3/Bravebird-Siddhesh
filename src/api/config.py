@@ -13,21 +13,22 @@ class Settings(BaseSettings):
     aws_logs_group: str = "/ecs/ephemeral-agent"
     
     # SQS Queues
-    sqs_queue_high: str = "jobs-high.fifo"
-    sqs_queue_normal: str = "jobs-normal.fifo"
-    sqs_queue_low: str = "jobs-low.fifo"
-    sqs_dlq: str = "jobs-dlq.fifo"
+    sqs_queue_high: str = "bravebird-cua-high.fifo"
+    sqs_queue_normal: str = "bravebird-cua-normal.fifo"
+    sqs_queue_low: str = "bravebird-cua-low.fifo"
+    sqs_dlq: str = "bravebird-cua-high-dlq.fifo"
     
     # DynamoDB
-    dynamodb_table: str = "jobs"
-    dynamodb_rate_limit_table: str = "rate-limits"
+    dynamodb_table: str = "bravebird-jobs"
+    dynamodb_rate_limit_table: str = "bravebird-rate-limits"
+    dynamodb_sessions_table: str = "bravebird-sessions"
     
     # S3
-    s3_bucket: str = "job-artifacts"
+    s3_bucket: str = "bravebird-artifacts" # Will be suffixed or overridden by env
     
     # ECS
-    ecs_cluster: str = "ephemeral-agents"
-    ecs_task_definition: str = "agent-task"
+    ecs_cluster: str = "BravebirdCluster"
+    ecs_task_definition: str = "CuaWorker"
     ecs_subnets: list[str] = []
     ecs_security_groups: list[str] = []
     

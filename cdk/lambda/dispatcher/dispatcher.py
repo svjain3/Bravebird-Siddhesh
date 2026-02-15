@@ -14,7 +14,7 @@ def handler(event, context):
             body = json.loads(record['body'])
             job_id = body.get('job_id')
             modality = body.get('modality', 'CUA') # Default to CUA if not specified
-            tenant_id = body.get('tenant_id')
+            tenant_id = body.get('tenant_id') or body.get('user_id')
             
             if not job_id or not tenant_id:
                 print(f"Skipping invalid record: {body}")

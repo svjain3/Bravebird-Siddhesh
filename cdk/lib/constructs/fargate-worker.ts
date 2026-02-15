@@ -34,6 +34,10 @@ export class FargateWorker extends Construct {
             memoryLimitMiB: props.memoryLimitMiB,
             taskRole: props.workerRole,
             executionRole: props.executionRole,
+            runtimePlatform: {
+                cpuArchitecture: ecs.CpuArchitecture.X86_64,
+                operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
+            },
         });
 
         // Firelens sidecar
