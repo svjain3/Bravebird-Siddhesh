@@ -126,6 +126,59 @@
     min-height: 100vh;
 }
 
+.topBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    margin-bottom: 24px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.userInfo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+}
+
+.userAvatar {
+    font-size: 1rem;
+}
+
+.userName {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.userSep {
+    color: var(--text-muted);
+}
+
+.userHospital {
+    color: var(--accent-light);
+    font-weight: 500;
+}
+
+.logoutBtn {
+    padding: 6px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.logoutBtn:hover {
+    background: rgba(255, 107, 107, 0.1);
+    border-color: #ff6b6b;
+    color: #ff6b6b;
+}
+
 .pageHeader {
     margin-bottom: 32px;
 }

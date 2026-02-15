@@ -3,6 +3,7 @@ import json
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import AsyncGenerator
+import boto3
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -246,6 +247,57 @@ async def submit_job(job_input: JobInput):
         job_id=job.job_id,
         status=job.status,
     )
+
+@app.get("/jobs", response_model=list[JobStatusResponse])
+async def list_jobs(user_id: str | None = None):
+    """List all jobs, optionally filtered by user_id"""
+    settings = get_settings()
+    dynamodb = get_dynamodb_client()
+    
+    try:
+        # Scan table for all jobs (for now, full scan is okay for small scale)
+        # In production, we'd use a GSI on user_id or efficient query
+        scan_kwargs = {
+            "TableName": settings.dynamodb_table,
+            "FilterExpression": "begins_with(PK, :pk_prefix) AND SK = :sk_val",
+            "ExpressionAttributeValues": {
+                ":pk_prefix": {"S": "TENANT#"},
+                ":sk_val": {"S": "META"}
+            }
+        }
+        
+        if user_id:
+            scan_kwargs["FilterExpression"] = "begins_with(PK, :pk_prefix) AND SK = :sk_val"
+            scan_kwargs["ExpressionAttributeValues"][":pk_prefix"] = {"S": f"TENANT#{user_id}#"}
+            
+        response = dynamodb.scan(**scan_kwargs)
+        items = response.get("Items", [])
+        
+        jobs = []
+        for item in items:
+            try:
+                job = Job.from_dynamodb_item(item)
+                jobs.append(JobStatusResponse(
+                    job_id=job.job_id,
+                    status=job.status,
+                    url=job.url,
+                    priority=job.priority,
+                    created_at=job.created_at,
+                    started_at=job.started_at,
+                    completed_at=job.completed_at,
+                    result=job.result,
+                ))
+            except Exception as e:
+                print(f"Error parsing job item: {e}")
+                continue
+                
+        # Sort by created_at desc
+        jobs.sort(key=lambda x: x.created_at, reverse=True)
+        return jobs
+        
+    except Exception as e:
+        print(f"Failed to list jobs: {e}")
+        raise HTTPException(500, f"Failed to list jobs: {e}")
 
 
 @app.get("/jobs/{job_id}", response_model=JobStatusResponse)
@@ -520,22 +572,7 @@ async def get_eligibility_chat(request: dict, x_hospital_id: str | None = Header
         Assistant:
         """
         
-        if model_choice == "titan":
-            model_id = "amazon.titan-text-express-v1"
-            body = json.dumps({
-                "inputText": prompt,
-                "textGenerationConfig": {
-                    "maxTokenCount": 512,
-                    "temperature": 0.5,
-                    "topP": 0.9
-                }
-            })
-            response = bedrock.invoke_model(modelId=model_id, body=body)
-            response_body = json.loads(response.get("body").read())
-            ai_reply = response_body["results"][0]["outputText"]
-             
-        else:
-            # Default: Claude 3 Haiku
+        if True:  # Force Claude 3 Haiku (Titan deprecated)
             model_id = "anthropic.claude-3-haiku-20240307-v1:0"
             body = json.dumps({
                "anthropic_version": "bedrock-2023-05-31",

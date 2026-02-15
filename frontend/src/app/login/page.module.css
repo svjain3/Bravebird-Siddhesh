@@ -1,0 +1,115 @@
+.container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--background);
+    color: var(--foreground);
+}
+
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    text-align: center;
+    background: linear-gradient(to right, #60a5fa, #a78bfa);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+    text-align: center;
+    color: #94a3b8;
+    margin-bottom: 2rem;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.inputGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.inputGroup label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #e2e8f0;
+}
+
+.input {
+    padding: 0.75rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.input:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
+}
+
+.button {
+    padding: 0.75rem;
+    background: linear-gradient(to right, #3b82f6, #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.button:hover {
+    opacity: 0.9;
+}
+
+.error {
+    color: #ef4444;
+    font-size: 0.875rem;
+    text-align: center;
+    padding: 0.5rem;
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: 4px;
+}
+
+.hint {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.hint ul {
+    list-style: none;
+    padding: 0;
+    margin-top: 0.5rem;
+}
+
+.hint li {
+    margin-bottom: 0.25rem;
+}
+
+.hint strong {
+    color: #94a3b8;
+}

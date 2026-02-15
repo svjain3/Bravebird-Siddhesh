@@ -67,6 +67,16 @@ export async function cancelJob(jobId: string): Promise<void> {
     }
 }
 
+export async function getJobs(userId?: string): Promise<JobStatusResponse[]> {
+    const url = userId
+        ? `${API_BASE}/jobs?user_id=${encodeURIComponent(userId)}`
+        : `${API_BASE}/jobs`;
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch jobs');
+    return res.json();
+}
+
 export async function getHealth(): Promise<HealthResponse> {
     const res = await fetch(`${API_BASE}/health`);
     if (!res.ok) throw new Error('Health check failed');

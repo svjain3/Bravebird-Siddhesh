@@ -1,55 +1,58 @@
 'use client';
 
+
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import styles from './page.module.css';
 import layoutStyles from './layout.module.css';
-import { getHealth, HealthResponse } from '@/lib/api';
-
-interface DemoJob {
-  job_id: string;
-  url: string;
-  status: string;
-  priority: string;
-  created_at: string;
-}
+import { getHealth, getJobs, HealthResponse, JobStatusResponse } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [jobs, setJobs] = useState<JobStatusResponse[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Demo data for showcase
-  const demoJobs: DemoJob[] = [
-    { job_id: 'job-01HQXYZ123', url: 'https://portal.aetna.com/eligibility', status: 'completed', priority: 'high', created_at: new Date(Date.now() - 120000).toISOString() },
-    { job_id: 'job-01HQXYZ456', url: 'https://cigna.com/verify', status: 'running', priority: 'normal', created_at: new Date(Date.now() - 60000).toISOString() },
-    { job_id: 'job-01HQXYZ789', url: 'https://uhc.com/provider-portal', status: 'queued', priority: 'low', created_at: new Date(Date.now() - 30000).toISOString() },
-  ];
-
-  const stats = {
-    total: 142,
-    running: 3,
-    completed: 128,
-    failed: 11,
-  };
-
   useEffect(() => {
-    getHealth()
-      .then(setHealth)
-      .catch(() => setError('API unreachable — start the backend with `docker-compose up`'))
-      .finally(() => setLoading(false));
-  }, []);
+    const fetchData = async () => {
+      try {
+        const [healthData, jobsData] = await Promise.all([
+          getHealth(),
+          getJobs(user?.id)
+        ]);
+        setHealth(healthData);
+        setJobs(jobsData);
+      } catch (err) {
+        setError('API unreachable — start the backend with `docker-compose up`');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchData();
+    }
+  }, [user]);
 
   function formatTime(iso: string) {
     const d = new Date(iso);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
+  const stats = {
+    total: jobs.length,
+    running: jobs.filter(j => j.status === 'running').length,
+    completed: jobs.filter(j => j.status === 'completed').length,
+    failed: jobs.filter(j => j.status === 'failed' || j.status === 'timeout').length,
+  };
+
   return (
     <div className="fade-in">
       <div className={layoutStyles.pageHeader}>
         <h1 className={layoutStyles.pageTitle}>Monitoring</h1>
-        <p className={layoutStyles.pageSubtitle}>System overview and recent activity</p>
+        <p className={layoutStyles.pageSubtitle}>System overview and recent activity for {user?.name}</p>
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
@@ -111,22 +114,28 @@ export default function Dashboard() {
 
       {/* Previous Checks */}
       <div className={styles.recentSection}>
-        <div className={styles.sectionTitle}>Previous Check</div>
+        <div className={styles.sectionTitle}>Recent Activity</div>
         <div className="card">
-          {demoJobs.map((job) => (
-            <Link key={job.job_id} href={`/history/${job.job_id}`}>
-              <div className={styles.jobRow}>
-                <div className={styles.jobInfo}>
-                  <span className={styles.jobId}>{job.job_id.slice(0, 16)}</span>
-                  <span className={styles.jobUrl}>{job.url}</span>
+          {jobs.length === 0 ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8' }}>
+              No jobs found. Submit a new job to get started.
+            </div>
+          ) : (
+            jobs.slice(0, 10).map((job) => (
+              <Link key={job.job_id} href={`/history/${job.job_id}`}>
+                <div className={styles.jobRow}>
+                  <div className={styles.jobInfo}>
+                    <span className={styles.jobId}>{job.job_id.slice(0, 16)}</span>
+                    <span className={styles.jobUrl}>{job.url}</span>
+                  </div>
+                  <div className={styles.jobMeta}>
+                    <span className={`badge badge-${job.status}`}>{job.status}</span>
+                    <span className={styles.jobTime}>{formatTime(job.created_at)}</span>
+                  </div>
                 </div>
-                <div className={styles.jobMeta}>
-                  <span className={`badge badge-${job.status}`}>{job.status}</span>
-                  <span className={styles.jobTime}>{formatTime(job.created_at)}</span>
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ))
+          )}
         </div>
       </div>
     </div>
